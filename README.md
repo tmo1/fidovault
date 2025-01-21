@@ -2,6 +2,11 @@
 
 FidoVault is a tool to control access to secrets via symmetric encryption and decryption using hardware [FIDO2](https://en.wikipedia.org/wiki/FIDO_Alliance#FIDO2) keys. A FidoVault vault file contains a secret encrypted via one or more FIDO2 keys, such that the secret is inaccessible without at least one of the keys, but any single key can decrypt the secret. A password can optionally be required for decryption in addition to a key.
 
+> [!CAUTION]
+> Most FIDO2 keys cannot be "backed up" or duplicated. If all the keys of a particular FidoVault are lost (or (presumably - I have not tested this) ["reset"u](https://support.yubico.com/hc/en-us/articles/360016648899-Resetting-the-FIDO2-Application-on-Your-YubiKey-or-Security-Key)), then that FidoVault will become irreversibly inaccessible.
+>
+> Additionally, FIDO2 keys apparently have two separate secret keys, one used when ["user verification" (`userVerification` or `uv`)](https://developers.yubico.com/WebAuthn/WebAuthn_Developer_Guide/User_Presence_vs_User_Verification.html) is performed, and the other when it is not. Consequently, secrets encrypted by a key when user verification is not performed may not be accessible by the same key when user verification is performed (and vice versa). For more detailed discussion of this issue and its implications, see [here](https://github.com/keepassxreboot/keepassxc/discussions/9506#discussioncomment-11864543).
+
 ## Hardware
 
 Any hardware FIDO2 key that supports the [HMAC Secret Extension](https://fidoalliance.org/specs/fido-v2.0-id-20180227/fido-client-to-authenticator-protocol-v2.0-id-20180227.html#sctn-hmac-secret-extension) (which [reportedly most do](https://0pointer.net/blog/unlocking-luks2-volumes-with-tpm2-fido2-pkcs11-security-hardware-on-systemd-248.html)) should work with FidoVault. Development and testing have primarily been done using a [Yubico Security Key](https://www.yubico.com/products/security-key/).
@@ -13,7 +18,8 @@ FidoVault is written in Python 3, and has the following dependencies:
  * [Cryptography](https://github.com/pyca/cryptography) (for symmetric encryption and decryption of secrets)
  * [python-fido2 version 1.2.0](https://github.com/Yubico/python-fido2/releases/tag/1.2.0) (for accessing FIDO2 keys)
  
-:warning: Be sure to use version 1.2.0 of python-fido2; FidoVault will not work correctly with earlier versions.
+> [!NOTE]
+> Be sure to use version 1.2.0 of python-fido2; FidoVault will not work correctly with earlier versions.
 
 ## Usage
 
@@ -123,7 +129,10 @@ $ fidovault.py -v <vaultname> | xargs -I % qdbus org.keepassxc.KeePassXC.MainWin
 
 The original motivation of FidoVault was the desire to implement a standalone tool to [open KeePassXC databases with FIDO2 keys](https://github.com/keepassxreboot/keepassxc/discussions/9506), but the code quickly evolved into a more general purpose tool. FidoVault's basic architecture was inspired by the discussion [here](https://github.com/keepassxreboot/keepassxc/discussions/9506), as well as the design of [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup) plus its [systemd-cryptenroll extension](https://0pointer.net/blog/unlocking-luks2-volumes-with-tpm2-fido2-pkcs11-security-hardware-on-systemd-248.html). Indeed, I seriously contemplated using LUKS + systemd-cryptenroll (possibly with loop devices) as a general purpose FIDO2-protected secret store, but since LUKS is designed around block devices and the [device mapper](https://en.wikipedia.org/wiki/Device_mapper), it cannot be easily used by non-root users.
 
-Another project similar to FidoVault (that I encountered after implementing FidoVault) is [khefin](https://github.com/mjec/khefin), but it was [abandoned a couple of years ago](https://github.com/mjec/khefin/issues/42).
+Other projects similar to FidoVault (which I encountered after implementing FidoVault):
+
+ * [khefin](https://github.com/mjec/khefin) ([abandoned a couple of years ago](https://github.com/mjec/khefin/issues/42))
+ * [tokenring](https://github.com/glyph/tokenring)
 
 ## Donations
 
