@@ -30,7 +30,8 @@ import cryptography
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from fido2.client import Fido2Client, UserInteraction
+from fido2.client import Fido2Client, UserInteraction, ClientError
+from fido2.ctap import CtapError
 from fido2.ctap2.extensions import HmacSecretExtension
 from fido2.hid import CtapHidDevice
 
@@ -131,10 +132,14 @@ def add_fido2(token):
         exit(1)
     print_tty("Making FIDO2 credential ... ")
     user_id = os.urandom(8)
-    result = client.make_credential({"challenge": os.urandom(12), "rp": {"id": "example.com", "name": "fidovault"},
-                                     "user": {"id": user_id, "name": "fidovault_user"},
-                                     "pubKeyCredParams": [{"type": "public-key", "alg": -7}],
-                                     "extensions": {"hmacCreateSecret": True}, }, )
+    try:
+        result = client.make_credential({"challenge": os.urandom(12), "rp": {"id": "example.com", "name": "fidovault"},
+                                         "user": {"id": user_id, "name": "fidovault_user"},
+                                         "pubKeyCredParams": [{"type": "public-key", "alg": -7}],
+                                         "extensions": {"hmacCreateSecret": True}, }, )
+    except ClientError as ce:
+        print_tty(ce.cause)
+        exit(1)
     if not result.extension_results.get("hmacCreateSecret"):
         print_tty("Error: hmacCreateSecret not found!")
         return
