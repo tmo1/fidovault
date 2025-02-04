@@ -1,27 +1,48 @@
 # FidoVault
 
-FidoVault is a tool to control access to secrets via symmetric encryption and decryption using hardware [FIDO2](https://en.wikipedia.org/wiki/FIDO_Alliance#FIDO2) keys. A FidoVault vault file contains a secret encrypted via one or more FIDO2 keys, such that the secret is inaccessible without at least one of the keys, but any single key can decrypt the secret. A password can optionally be required for decryption in addition to a key.
+FidoVault is a tool to control access to secrets via symmetric encryption and decryption using [FIDO2](https://en.wikipedia.org/wiki/FIDO_Alliance#FIDO2) authenticators. A FidoVault vault file contains a secret encrypted via one or more FIDO2 authenticators, such that the secret is inaccessible without at least one of the authenticators, but any single authenticator can decrypt the secret. A password can optionally be required for decryption in addition to an authenticator.
 
 > [!CAUTION]
-> Most FIDO2 keys cannot be "backed up" or duplicated. If all the keys of a particular FidoVault are lost or ["reset"](https://support.yubico.com/hc/en-us/articles/360016648899-Resetting-the-FIDO2-Application-on-Your-YubiKey-or-Security-Key)), then that FidoVault will become permanently inaccessible.
+> Most FIDO2 authenticators cannot be "backed up" or duplicated. If all the authenticators of a particular FidoVault are lost (or ["reset"](https://support.yubico.com/hc/en-us/articles/360016648899-Resetting-the-FIDO2-Application-on-Your-YubiKey-or-Security-Key)), then that FidoVault will become permanently inaccessible.
 >
-> Additionally, [when FIDO2 keys make a credential, they generate two random values, `credRandomWithUV` and `credRandomWithoutUV`, and associate them with the credential](https://fidoalliance.org/specs/fido-v2.1-rd-20210309/fido-client-to-authenticator-protocol-v2.1-rd-20210309.html#sctn-hmac-secret-extension). In the context of an assertion, the former is used when ["user verification" (`userVerification` or `uv`)](https://developers.yubico.com/WebAuthn/WebAuthn_Developer_Guide/User_Presence_vs_User_Verification.html) is done and the latter when it is not. Consequently, secrets encrypted by a key when user verification is not done will not be able to be decrypted by the same key when user verification is done (and vice versa). For more detailed discussion of this issue and its implications, see [here](https://github.com/keepassxreboot/keepassxc/discussions/9506#discussioncomment-11864543).
+> Additionally, [when FIDO2 authenticators make a credential, they generate two random values, `credRandomWithUV` and `credRandomWithoutUV`, and associate them with the credential](https://fidoalliance.org/specs/fido-v2.1-rd-20210309/fido-client-to-authenticator-protocol-v2.1-rd-20210309.html#sctn-hmac-secret-extension). In the context of an assertion, the former is used when ["user verification"](https://developers.yubico.com/WebAuthn/WebAuthn_Developer_Guide/User_Presence_vs_User_Verification.html) (most commonly via the entry of a PIN) is performed and the latter when it is not. Consequently, secrets encrypted by an authenticator when user verification is not performed will not be able to be decrypted by the same authenticator when user verification is performed (and vice versa). For more detailed discussion of this issue and its implications, see [here](https://github.com/keepassxreboot/keepassxc/discussions/9506#discussioncomment-11864543).
 
 ## Hardware
 
-Any hardware FIDO2 key that supports the [HMAC Secret Extension](https://fidoalliance.org/specs/fido-v2.0-id-20180227/fido-client-to-authenticator-protocol-v2.0-id-20180227.html#sctn-hmac-secret-extension) (which [reportedly most do](https://0pointer.net/blog/unlocking-luks2-volumes-with-tpm2-fido2-pkcs11-security-hardware-on-systemd-248.html)) should work with FidoVault. Development and testing have primarily been done using a [Yubico Security Key](https://www.yubico.com/products/security-key/).
+Any standard [USB](https://fidoalliance.org/specs/fido-v2.1-rd-20210309/fido-client-to-authenticator-protocol-v2.1-rd-20210309.html#usb) authenticator that supports the [HMAC Secret Extension](https://fidoalliance.org/specs/fido-v2.0-id-20180227/fido-client-to-authenticator-protocol-v2.0-id-20180227.html#sctn-hmac-secret-extension) (which [reportedly most do](https://0pointer.net/blog/unlocking-luks2-volumes-with-tpm2-fido2-pkcs11-security-hardware-on-systemd-248.html)) should work with FidoVault. [NFC](https://fidoalliance.org/specs/fido-v2.1-rd-20210309/fido-client-to-authenticator-protocol-v2.1-rd-20210309.html#nfc) and [Bluetooth](https://fidoalliance.org/specs/fido-v2.1-rd-20210309/fido-client-to-authenticator-protocol-v2.1-rd-20210309.html#nfc) authenticators have not been tested, and PC/SC authenticators are not currently supported. Development and testing have primarily been done using a [Yubico Security Key](https://www.yubico.com/products/security-key/).
 
 ## Dependencies
 
 FidoVault is written in Python 3, and has the following dependencies:
 
- * [Cryptography](https://github.com/pyca/cryptography) (for symmetric encryption and decryption of secrets)
- * [python-fido2 version 1.2.0](https://github.com/Yubico/python-fido2/releases/tag/1.2.0) (for accessing FIDO2 keys)
+ * [`cryptography`](https://github.com/pyca/cryptography) (for symmetric encryption and decryption of secrets)
+ * [`python-fido2` version 1.2.0](https://github.com/Yubico/python-fido2/releases/tag/1.2.0) (for accessing FIDO2 authenticators)
  
 > [!NOTE]
-> Be sure to use version 1.2.0 of python-fido2; FidoVault will not work correctly with earlier versions.
+> Be sure to use version 1.2.0 of `python-fido2`; FidoVault will not work correctly with earlier versions.
+
+FidoVault should work on any platform on which Python 3 and the above dependencies can be installed, although running under Windows may require administrator privileges, since [Windows apparently requires](https://support.yubico.com/hc/en-us/articles/360016648939-Troubleshooting-Failed-connecting-to-the-YubiKey-Make-sure-the-application-has-the-required-permissions-in-YubiKey-Manager) [administrator privileges](https://docs.yubico.com/yesdk/yubikey-api/Yubico.YubiKey.YubiKeyDevice.FindByTransport.html) [for certain FIDO APIs](https://github.com/keepassxreboot/keepassxc/issues/11400).
+
 
 ## Usage
+
+Display usage instructions:
+
+```
+$ fidovault.py -h
+usage: fidovault.py [-h] [-v VAULT] [-k KEY] [-i | -a]
+
+Create and manage FidoVaults - control access to secrets via symmetric encryption and decryption using FIDO2 authenticators.
+
+options:
+  -h, --help         show this help message and exit
+  -v, --vault VAULT  FidoVault location
+  -k, --key KEY      use (only) this key section of the FidoVault
+  -i, --init         initialize a FidoVault
+  -a, --add          add a key section to a FidoVault
+
+If neither '--init' nor '--add' are specified, the program will attempt to output the FidoVault's secret to STDOUT.
+```
 
 Initialize a FidoVault:
 
@@ -29,60 +50,69 @@ Initialize a FidoVault:
 $ fidovault.py -i -v <vaultname>
 Enter secret: 
 Confirm secret: 
-Prompt for passwords to combine with FIDO2 hmac-secrets? (y/n - default is y) y
-Please connect the FIDO2 key you wish to add (and disconnect any others).
+Please connect the device you wish to enroll (and disconnect any others).
 Press <enter> when ready ... 
-Checking key at /dev/hidraw1 ...
-Key supports the hmac-secret extension.
-Making FIDO2 credential ... 
-Touch your authenticator device now ...
-Success.
-Getting hmac-secret ... 
-Touch your authenticator device now ...
-Success.
-Enter password (leave blank for none): 
+Checking device at /dev/hidraw2 ...
+Device supports the hmac-secret extension.
+Creating FIDO2 credential ... 
+Enter PIN: 
+Touch your authenticator now ...
+FIDO2 credential created.
+Enter name for this key section: Blue Key
+Perform user verification when using this key section? (y/n - default is y) 
+Combine password with FIDO2 hmac-secret when using this key section? (y/n - default is y) 
+Getting hmac-secret ...
+Touch your authenticator now ...
+Enter password: 
 Confirm password: 
-Enter name for this key: Blue Key
-FIDO2 key successfully added.
+Key section 'Blue Key' successfully added.
 FidoVault '<vaultname>' updated.
+
 ```
 
-Add an additional key to an existing FidoVault (connect an already configured FIDO2 key before proceeding):
+Add an additional authenticator to an existing FidoVault (connect an already added authenticator before proceeding):
 
 ```
 $ fidovault.py -a -v <vaultname>
-Checking key at /dev/hidraw1 ...
-Key supports the hmac-secret extension.
-Touch your authenticator device now ...
-Enter password (leave blank for none): 
-Attempting to decrypt token of 'Blue Key' ...
+Checking device at /dev/hidraw2 ...
+Credential found on device.
+Trying to decode token using 'Blue Key' key section ...
+Getting hmac-secret ...
+Enter PIN: 
+Touch your authenticator now ...
+Enter password: 
 Token decryption succeeded.
-Please connect the FIDO2 key you wish to add (and disconnect any others).
+Please connect the device you wish to enroll (and disconnect any others).
 Press <enter> when ready ... 
-Checking key at /dev/hidraw1 ...
-Key supports the hmac-secret extension.
-Making FIDO2 credential ... 
-Touch your authenticator device now ...
-Success.
-Getting hmac-secret ... 
-Touch your authenticator device now ...
-Success.
-Enter password (leave blank for none): 
+Checking device at /dev/hidraw2 ...
+Device supports the hmac-secret extension.
+Creating FIDO2 credential ... 
+Enter PIN: 
+Touch your authenticator now ...
+FIDO2 credential created.
+Enter name for this key section: Red Key
+Perform user verification when using this key section? (y/n - default is y) 
+Combine password with FIDO2 hmac-secret when using this key section? (y/n - default is y) 
+Getting hmac-secret ...
+Touch your authenticator now ...
+Enter password: 
 Confirm password: 
-Enter name for this key: Red Key
-FIDO2 key successfully added.
-FidoVault '<vaultname> updated.
+Key section 'Red Key' successfully added.
+FidoVault '<vaultname>' updated.
+
 ```
 
-Print a FidoVault secret:
+Output a FidoVault secret:
 
 ```
 $ fidovault.py -v <vaultname>
-Checking key at /dev/hidraw1 ...
-Key supports the hmac-secret extension.
-Touch your authenticator device now ...
-Enter password (leave blank for none): 
-Attempting to decrypt token of 'Blue Key' ...
+Checking device at /dev/hidraw2 ...
+Credential found on device.
+Trying to decode token using 'Blue Key' key section ...
+Getting hmac-secret ...
+Enter PIN: 
+Touch your authenticator now ...
+Enter password: 
 Token decryption succeeded.
 <secret>
 ```
@@ -128,7 +158,7 @@ $ fidovault.py -v <vaultname> | xargs -I % qdbus org.keepassxc.KeePassXC.MainWin
 
 ## Background
 
-The original motivation of FidoVault was the desire to implement a standalone tool to [open KeePassXC databases with FIDO2 keys](https://github.com/keepassxreboot/keepassxc/discussions/9506), but the code quickly evolved into a more general purpose tool. FidoVault's basic architecture was inspired by the discussion [here](https://github.com/keepassxreboot/keepassxc/discussions/9506), as well as the design of [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup) plus its [systemd-cryptenroll extension](https://0pointer.net/blog/unlocking-luks2-volumes-with-tpm2-fido2-pkcs11-security-hardware-on-systemd-248.html). Indeed, I seriously contemplated using LUKS + systemd-cryptenroll (possibly with loop devices) as a general purpose FIDO2-protected secret store, but since LUKS is designed around block devices and the [device mapper](https://en.wikipedia.org/wiki/Device_mapper), it cannot be easily used by non-root users.
+The original motivation of FidoVault was the desire to implement a standalone tool to [open KeePassXC databases with FIDO2 authenticators](https://github.com/keepassxreboot/keepassxc/discussions/9506), but the code quickly evolved into a more general purpose tool. FidoVault's basic architecture was inspired by the discussion [here](https://github.com/keepassxreboot/keepassxc/discussions/9506), as well as the design of [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup) plus its [systemd-cryptenroll extension](https://0pointer.net/blog/unlocking-luks2-volumes-with-tpm2-fido2-pkcs11-security-hardware-on-systemd-248.html). Indeed, I seriously contemplated using LUKS + systemd-cryptenroll (possibly with loop devices) as a general purpose FIDO2-protected secret store, but since LUKS is designed around block devices and the [device mapper](https://en.wikipedia.org/wiki/Device_mapper), it cannot be easily used by non-root users.
 
 ## Alternatives ##
 
