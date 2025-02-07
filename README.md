@@ -167,6 +167,7 @@ Other projects similar to FidoVault:
  * [tokenring](https://github.com/glyph/tokenring): "TokenRing is a back-end for the Python keyring module, which uses a hard token to encrypt your collection of passwords as a large Fernet token, composed of individual password entries, each of which is separately encrypted as a smaller Fernet token of its own."
  * [age-plugin-fido](https://github.com/riastradh/age-plugin-fido): "draft fido plugin for age(1)" ("early draft, likely buggy, protocol not finalized", "usability issues with multiple fido keys", "not actually tested with age(1) yet")
  * [age-plugin-yubikey](https://github.com/olastor/age-plugin-fido2-hmac/): "Encrypt files with fido2 keys that support the "hmac-secret" extension."
+ * [FileKey](https://filekey.app/): "Files need protection. FileKey secures them. Works with Yubikeys. Drop files in. They lock. Drop them again. They unlock. Your data stays on your device, and only you hold the key. Open source and powered by AES-256 encryption—the same standard trusted by the US government for top-secret information." ([Reddit announcement thread](https://old.reddit.com/r/yubikey/comments/1iiptny/introducing_filekey_encrypt_decrypt_files_using/))
  * [khefin](https://github.com/mjec/khefin): "A system for using a FIDO2 authenticator with hmac-secret extension support to generate passphrase-protected secrets." ([abandoned a couple of years ago](https://github.com/mjec/khefin/issues/42))
 
 ## Donations
