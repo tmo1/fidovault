@@ -66,7 +66,7 @@ import cryptography
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from fido2.client import Fido2Client, UserInteraction, ClientError
+from fido2.client import Fido2Client, DefaultClientDataCollector, UserInteraction, ClientError
 from fido2.ctap import CtapError
 from fido2.ctap2 import Ctap2
 from fido2.ctap2.extensions import HmacSecretExtension
@@ -110,9 +110,10 @@ def input_boolean(prompt, default):
 
 def find_fido2_device():
     """Find and return the first device that supports the hmac-secret extension"""
+    client_data_collector = DefaultClientDataCollector("https://example.com")
     for dev in CtapHidDevice.list_devices():
         print_tty(f"Checking device at {dev.descriptor.path} ...")
-        client = Fido2Client(dev, "https://example.com", user_interaction=CliInteraction(),
+        client = Fido2Client(dev, client_data_collector=client_data_collector, user_interaction=CliInteraction(),
                              extensions=[HmacSecretExtension(allow_hmac_secret=True)])
         if "hmac-secret" in client.info.extensions:
             print_tty("Device supports the hmac-secret extension.")
@@ -146,7 +147,7 @@ def get_hmac_secret(key_section, client):
     except ClientError as ce:
         print_tty(ce.cause)
         exit(1)
-    return result.extension_results["hmacGetSecret"]["output1"].encode()
+    return result.client_extension_results["hmacGetSecret"]["output1"].encode()
 
 
 def secret_to_key(secret, salt):
@@ -186,7 +187,8 @@ def decrypt_token():
     else:
         print_tty("No device with credentials found.")
         exit(1)
-    client = Fido2Client(dev, "https://example.com", user_interaction=CliInteraction(),
+    client_data_collector = DefaultClientDataCollector("https://example.com")
+    client = Fido2Client(dev, client_data_collector=client_data_collector, user_interaction=CliInteraction(),
                          extensions=[HmacSecretExtension(allow_hmac_secret=True)])
     for key_name in fidovault.sections():
         if bytes.fromhex(fidovault[key_name]["credential"]) == credential:
@@ -232,11 +234,11 @@ def add_key_section(token):
     except ClientError as ce:
         print_tty(ce.cause)
         exit(1)
-    if not result.extension_results.get("hmacCreateSecret"):
+    if not result.client_extension_results.get("hmacCreateSecret"):
         print_tty("Error: hmacCreateSecret not found!")
         exit(1)
     print_tty("FIDO2 credential created.")
-    credential = result.attestation_object.auth_data.credential_data
+    credential = result.response.attestation_object.auth_data.credential_data
     hmac_secret_salt = os.urandom(32)
     kdf_salt = os.urandom(16)
     key_name = None
