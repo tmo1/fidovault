@@ -16,10 +16,10 @@ Any standard [USB](https://fidoalliance.org/specs/fido-v2.1-rd-20210309/fido-cli
 FidoVault is written in Python 3, and has the following dependencies:
 
  * [`cryptography`](https://github.com/pyca/cryptography) (for symmetric encryption and decryption of secrets)
- * [`python-fido2` version 1.2.0](https://github.com/Yubico/python-fido2/releases/tag/1.2.0) (for accessing FIDO2 authenticators)
+ * [`python-fido2` version 2.0.0](https://github.com/Yubico/python-fido2/releases/tag/2.0.0) (for accessing FIDO2 authenticators)
  
 > [!NOTE]
-> Be sure to use version 1.2.0 of `python-fido2`; FidoVault will not work correctly with earlier versions.
+> FidoVault has been updated to work with version 2.0 of `python-fido2`, and the current code will not work with earlier versions.
 
 FidoVault should work on any platform on which Python 3 and the above dependencies can be installed, although running under Windows may require administrator privileges, since [Windows apparently requires](https://support.yubico.com/hc/en-us/articles/360016648939-Troubleshooting-Failed-connecting-to-the-YubiKey-Make-sure-the-application-has-the-required-permissions-in-YubiKey-Manager) [administrator privileges](https://docs.yubico.com/yesdk/yubikey-api/Yubico.YubiKey.YubiKeyDevice.FindByTransport.html) [for certain FIDO APIs](https://github.com/keepassxreboot/keepassxc/issues/11400).
 
