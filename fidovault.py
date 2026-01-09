@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
 # FidoVault: A tool to control access to secrets via symmetric encryption and decryption using FIDO2 authenticators.
 # Copyright (c) 2025-2026 Thomas More.

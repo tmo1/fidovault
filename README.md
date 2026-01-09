@@ -11,18 +11,19 @@ FidoVault is a tool to control access to secrets via symmetric encryption and de
 
 Any standard [USB](https://fidoalliance.org/specs/fido-v2.1-rd-20210309/fido-client-to-authenticator-protocol-v2.1-rd-20210309.html#usb) authenticator that supports the [HMAC Secret Extension](https://fidoalliance.org/specs/fido-v2.0-id-20180227/fido-client-to-authenticator-protocol-v2.0-id-20180227.html#sctn-hmac-secret-extension) (which [reportedly most do](https://0pointer.net/blog/unlocking-luks2-volumes-with-tpm2-fido2-pkcs11-security-hardware-on-systemd-248.html)) should work with FidoVault. [NFC](https://fidoalliance.org/specs/fido-v2.1-rd-20210309/fido-client-to-authenticator-protocol-v2.1-rd-20210309.html#nfc) and [Bluetooth](https://fidoalliance.org/specs/fido-v2.1-rd-20210309/fido-client-to-authenticator-protocol-v2.1-rd-20210309.html#nfc) authenticators have not been tested, and PC/SC authenticators are not currently supported. Development and testing have primarily been done using a [Yubico Security Key](https://www.yubico.com/products/security-key/).
 
-## Dependencies
+## Dependencies and Installation
 
 FidoVault is written in Python 3, and has the following dependencies:
 
- * [`cryptography`](https://github.com/pyca/cryptography) (for symmetric encryption and decryption of secrets)
- * [`python-fido2` version 2.0.0](https://github.com/Yubico/python-fido2/releases/tag/2.0.0) (for accessing FIDO2 authenticators)
+ * [`cryptography`](https://github.com/pyca/cryptography) (Debian package `python3-cryptography`) (for symmetric encryption and decryption of secrets)
+ * [`[python-]fido2`](https://github.com/Yubico/python-fido2)>=2.0.0 (Debian package `python3-fido2`) (for accessing FIDO2 authenticators)
  
 > [!NOTE]
-> FidoVault has been updated to work with version 2.0 of `python-fido2`, and the current code will not work with earlier versions.
+> FidoVault has been updated to work with version 2.0 of `[python-]fido2`, and the current code will not work with earlier versions.
 
 FidoVault should work on any platform on which Python 3 and the above dependencies can be installed, although running under Windows may require administrator privileges, since [Windows apparently requires](https://support.yubico.com/hc/en-us/articles/360016648939-Troubleshooting-Failed-connecting-to-the-YubiKey-Make-sure-the-application-has-the-required-permissions-in-YubiKey-Manager) [administrator privileges](https://docs.yubico.com/yesdk/yubikey-api/Yubico.YubiKey.YubiKeyDevice.FindByTransport.html) [for certain FIDO APIs](https://github.com/keepassxreboot/keepassxc/issues/11400).
 
+At least on Linux, if FidoVault's dependencies are installed and available (e.g., on Debian via `apt install python3-fido2`, which will pull in `python3-cryptography` as well), then the script can be run directly without installation as `path/to/fidovault.py`. It can also be installed from PyPI via pip / pipx, in which case it can be run simply as `fidovault`.
 
 ## Usage
 
