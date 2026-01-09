@@ -1,0 +1,19 @@
+[build-system]
+requires = ["flit_core >=3.11,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "fidovault"
+authors = [{name = "Thomas More", email = "tmore1@gmx.com"}]
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["COPYING"]
+dynamic = ["version", "description"]
+dependencies = ["cryptography", "fido2 >=2.0.0"]
+
+[project.urls]
+Home = "https://github.com/tmo1/fidovault/"
+
+[project.scripts]
+fidovault = "fidovault:main"
+
