@@ -1,5 +1,15 @@
 # FidoVault
 
+![GitHub Release](https://img.shields.io/github/v/release/tmo1/fidovault)
+![GitHub Release Date - Published_At](https://img.shields.io/github/release-date/tmo1/fidovault)
+![PyPI Version](https://img.shields.io/pypi/v/fidovault?label=PyPI%20version)
+![PyPI Downloads](https://img.shields.io/pypi/dm/fidovault?label=PyPI%20downloads)
+<!--![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/tmo1/fidovault/total) (consider including when the total is non-zero ;)-->
+
+![GitHub issues](https://img.shields.io/github/issues/tmo1/fidovault)
+![GitHub closed issues](https://img.shields.io/github/issues-closed/tmo1/fidovault)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/tmo1/fidovault)
+
 FidoVault is a tool to control access to secrets via symmetric encryption and decryption using [FIDO2](https://en.wikipedia.org/wiki/FIDO_Alliance#FIDO2) authenticators. A FidoVault vault file contains a secret encrypted via one or more FIDO2 authenticators, such that the secret is inaccessible without at least one of the authenticators, but any single authenticator can decrypt the secret. A password can optionally be required for decryption in addition to an authenticator.
 
 > [!CAUTION]
@@ -23,7 +33,7 @@ FidoVault is written in Python 3, and has the following dependencies:
 
 FidoVault should work on any platform on which Python 3 and the above dependencies can be installed, although running under Windows may require administrator privileges, since [Windows apparently requires](https://support.yubico.com/hc/en-us/articles/360016648939-Troubleshooting-Failed-connecting-to-the-YubiKey-Make-sure-the-application-has-the-required-permissions-in-YubiKey-Manager) [administrator privileges](https://docs.yubico.com/yesdk/yubikey-api/Yubico.YubiKey.YubiKeyDevice.FindByTransport.html) [for certain FIDO APIs](https://github.com/keepassxreboot/keepassxc/issues/11400).
 
-At least on Linux, if FidoVault's dependencies are installed and available (e.g., on Debian via `apt install python3-fido2`, which will pull in `python3-cryptography` as well), then the script can be run directly without installation as `path/to/fidovault.py`. It can also be installed from PyPI via pip / pipx, in which case it can be run simply as `fidovault`.
+At least on Linux, if FidoVault's dependencies are installed and available (e.g., on Debian via `apt install python3-fido2`, which will pull in `python3-cryptography` as well), then the script can be run directly without installation as `path/to/fidovault.py`. It can also be installed [from PyPI](https://test.pypi.org/project/fidovault/) via pip / pipx, in which case it can be run simply as `fidovault`.
 
 ## Usage
 
@@ -171,6 +181,10 @@ Other projects similar to FidoVault:
  * [FileKey](https://filekey.app/): "Files need protection. FileKey secures them. Works with Yubikeys. Drop files in. They lock. Drop them again. They unlock. Your data stays on your device, and only you hold the key. Open source and powered by AES-256 encryption—the same standard trusted by the US government for top-secret information." ([Reddit announcement thread](https://old.reddit.com/r/yubikey/comments/1iiptny/introducing_filekey_encrypt_decrypt_files_using/))
  * [khefin](https://github.com/mjec/khefin): "A system for using a FIDO2 authenticator with hmac-secret extension support to generate passphrase-protected secrets." ([abandoned a couple of years ago](https://github.com/mjec/khefin/issues/42))
 
+## Contributors
+
+ * [MartinDerTolle](https://github.com/MartinDerTolle): [Code migration from python-fido2 1.x to 2.0](https://github.com/Yubico/python-fido2/blob/main/doc/Migration_1-2.adoc) ([PR #5](https://github.com/tmo1/fidovault/pull/5))
+ 
 ## Donations
 
 FidoVault is absolutely free software, and there is no expectation of any sort of compensation or support for the project. That being said, if anyone wishes to donate (to Thomas More, the tool's primary author), this can be done via [the Ko-fi platform](https://ko-fi.com/thomasmore).
