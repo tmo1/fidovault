@@ -290,6 +290,30 @@ def init_vault():
 
 
 def main():
+
+    if sys.platform == "linux":
+        from ctypes import CDLL
+        libc = CDLL(None)
+        # https://filippo.io/linux-syscall-table/
+        PR_CTL, MLOCKALL = 157, 151
+        # Try to set process to non-dumpable
+        # https://docs.kernel.org/admin-guide/LSM/Yama.html
+        # https://lwn.net/Articles/491440/
+        # https://stackoverflow.com/questions/37032203/make-syscall-in-python
+        # https://github.com/python/cpython/issues/86902
+        # https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/uapi/linux/prctl.h
+        PR_SET_DUMPABLE = 4
+        result = libc.syscall(PR_CTL, PR_SET_DUMPABLE, 0)
+        if result != 0:
+            print(f"Failed to set non-dumpable - aborting.")
+            exit(1)
+        # mman.h
+        MCL_FUTURE = 2
+        result = libc.syscall(MLOCKALL, MCL_FUTURE)
+        if result != 0:
+            print(f"Failed to lock memory - aborting.")
+            exit(1)
+
     # Parse command line arguments
 
     parser = argparse.ArgumentParser(

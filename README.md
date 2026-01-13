@@ -167,11 +167,15 @@ $ fidovault.py -v <vaultname> | xargs -I % qdbus org.keepassxc.KeePassXC.MainWin
 > [!CAUTION]
 > Including a secret in a command's arguments is generally considered insecure, since the secret will be visible to anyone with access to the system process list. The above `qdbus` command is [additionally insecure since it will place the secret on the D-Bus message bus, which also may be accessible to others](https://github.com/keepassxreboot/keepassxc/issues/8826).
 
+## Memory Security
+
+On Linux, on startup FidoVault calls [`prctl(PR_SET_DUMPABLE, 0)`](https://man7.org/linux/man-pages/man2/pr_set_dumpable.2const.html) to disable [ptracing](https://lwn.net/Articles/491440/) and core dumping, and [`mlockall(MCL_FUTURE)`](https://www.man7.org/linux/man-pages/man2/mlockall.2.html) to disable paging.
+
 ## Background
 
 The original motivation of FidoVault was the desire to implement a standalone tool to [open KeePassXC databases with FIDO2 authenticators](https://github.com/keepassxreboot/keepassxc/discussions/9506), but the code quickly evolved into a more general purpose tool. FidoVault's basic architecture was inspired by the discussion [here](https://github.com/keepassxreboot/keepassxc/discussions/9506), as well as the design of [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup) plus its [systemd-cryptenroll extension](https://0pointer.net/blog/unlocking-luks2-volumes-with-tpm2-fido2-pkcs11-security-hardware-on-systemd-248.html). Indeed, I seriously contemplated using LUKS + systemd-cryptenroll (possibly with loop devices) as a general purpose FIDO2-protected secret store, but since LUKS is designed around block devices and the [device mapper](https://en.wikipedia.org/wiki/Device_mapper), it cannot be easily used by non-root users.
 
-## Alternatives ##
+## Alternatives
 
 Other projects similar to FidoVault:
 
