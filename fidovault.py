@@ -51,7 +51,7 @@
 """
 Control access to secrets via symmetric encryption and decryption using FIDO2 authenticators.
 
-Usage: fidovault.py [-h] [-v VAULT] [-k KEY] [-i | -a]
+Usage: fidovault.py [-h] [-v VAULT] [-k KEY] [-i | -a] [-g N]
 Run 'fidovault.py -h' for help
 """
 
@@ -286,8 +286,7 @@ def init_vault(secret=None):
                 break
             print_tty("Entries do not match - please try again.")
     vault = configparser.ConfigParser()
-    add_key_section(vault, secret.encode())
-    return vault
+    return vault if add_key_section(vault, secret.encode()) else None
 
 
 def main():
@@ -326,7 +325,7 @@ def main():
         epilog="If neither '--init' nor '--add' are specified, the program will attempt to output the FidoVault's secret to STDOUT.")
     parser.add_argument("-v", "--vault", help="FidoVault location", default="fidovault.ini")
     parser.add_argument("-k", "--key", help="use (only) this key section of the FidoVault")
-    parser.add_argument("-g", "--generate", help="generate FidoVault secret utilizing at least N cryptographically random bits", type=int, metavar="N")
+    parser.add_argument("-g", "--generate", help="generate FidoVault secret utilizing at least N cryptographically random bits (only used if initializing a FidoVault, otherwise ignored)", type=int, metavar="N")
     action = parser.add_mutually_exclusive_group()
     action.add_argument("-i", "--init", action="store_true", help="initialize a FidoVault")
     action.add_argument("-a", "--add", action="store_true", help="add a key section to a FidoVault")
@@ -340,8 +339,12 @@ def main():
             exit(1)
         secret =  os.urandom(args.generate // 8 + (1 if args.generate % 8 else 0)).hex() if args.generate else None
         vault = init_vault(secret)
-        write_vault(vault, args.vault)
-        print_tty(f"FidoVault '{args.vault}' initialized.")
+        if vault is not None:
+            write_vault(vault, args.vault)
+            print_tty(f"FidoVault '{args.vault}' initialized.")
+        else:
+            print_tty("FidoVault initialization failed.")
+            exit(1)
     else:
         vault = read_vault(args.vault)
         if vault is None:
