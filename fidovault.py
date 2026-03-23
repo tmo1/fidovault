@@ -159,7 +159,8 @@ def add_key_section(vault, token):
     kdf_salt = os.urandom(16)
     key_name = None
     while key_name is None:
-        key_name = input("Enter name for this key section: ") or "Key " + str(len(vault.sections()) + 1)
+        default_key_name = "Key " + str(len(vault.sections()) + 1)
+        key_name = input(f"Enter name for this key section: (default is '{default_key_name}')") or default_key_name
         if key_name in vault.sections():
             print_tty(
                 f"'{vault}' already contains a key section named '{key_name}' - please choose a different name.")
