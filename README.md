@@ -41,7 +41,7 @@ Display usage instructions:
 
 ```
 $ fidovault.py -h
-usage: fidovault.py [-h] [-v VAULT] [-k KEY] [-i | -a]
+usage: fidovault.py [-h] [-v VAULT] [-k KEY] [-g N] [-i | -a]
 
 Create and manage FidoVaults - control access to secrets via symmetric encryption and decryption using FIDO2 authenticators.
 
@@ -49,6 +49,7 @@ options:
   -h, --help         show this help message and exit
   -v, --vault VAULT  FidoVault location
   -k, --key KEY      use (only) this key section of the FidoVault
+  -g, --generate N   generate FidoVault secret utilizing at least N cryptographically random bits (only used if initializing a FidoVault, otherwise ignored)
   -i, --init         initialize a FidoVault
   -a, --add          add a key section to a FidoVault
 
