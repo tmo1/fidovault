@@ -63,8 +63,7 @@ import sys
 from getpass import getpass
 import cryptography
 from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
 from fido2.client import Fido2Client, DefaultClientDataCollector, UserInteraction, ClientError
 from fido2.ctap import CtapError
 from fido2.ctap2 import Ctap2
@@ -204,7 +203,7 @@ def get_hmac_secret(key_section, client):
 
 def secret_to_key(secret, salt):
     """Derive a Fernet key from a secret and a salt"""
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=1_000_000)
+    kdf = Argon2id(salt=salt, length=32, iterations=1, lanes=4, memory_cost=2**21)
     return base64.urlsafe_b64encode(kdf.derive(secret))
 
 
@@ -292,6 +291,22 @@ def init_vault(secret=None):
 
 def main():
 
+    # Parse command line arguments
+
+    parser = argparse.ArgumentParser(
+        description="Create and manage FidoVaults - control access to secrets via symmetric encryption and decryption using FIDO2 authenticators.",
+        epilog="If neither '--init' nor '--add' are specified, the program will attempt to output the FidoVault's secret to STDOUT.")
+    parser.add_argument("-v", "--vault", help="FidoVault filename", default="fidovault.ini")
+    parser.add_argument("-k", "--key", help="use (only) this key section of the FidoVault")
+    parser.add_argument("-g", "--generate", help="generate FidoVault secret utilizing at least N cryptographically random bits (only used if initializing a FidoVault, otherwise ignored)", type=int, metavar="N")
+    parser.add_argument("-m", "--mlockall", help="lock all process memory into RAM (Linux only, and the memlock limit must be high enough to accommodate the memory used by Argon2)", action="store_true", default=False)
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument("-i", "--init", action="store_true", help="initialize a FidoVault")
+    action.add_argument("-a", "--add", action="store_true", help="add a key section to a FidoVault")
+    args = parser.parse_args()
+
+    # Memory security
+
     if sys.platform == "linux":
         from ctypes import CDLL
         libc = CDLL(None)
@@ -308,29 +323,24 @@ def main():
         if result != 0:
             print(f"Failed to set non-dumpable - aborting.")
             exit(1)
-        # Try to lock all future process memory
-        # https://eklitzke.org/mlock-and-mlockall
-        # https://keepassxc.org/blog/2019-02-21-memory-security/
-        # https://groups.google.com/g/golang-nuts/c/Rt3HeMMS_AQ
-        # mman.h
-        MCL_FUTURE = 2
-        result = libc.syscall(MLOCKALL, MCL_FUTURE)
-        if result != 0:
-            print(f"Failed to lock memory - aborting.")
-            exit(1)
+        if args.mlockall:
 
-    # Parse command line arguments
+            # Try to lock all future process memory
+            # https://eklitzke.org/mlock-and-mlockall
+            # https://keepassxc.org/blog/2019-02-21-memory-security/
+            # https://groups.google.com/g/golang-nuts/c/Rt3HeMMS_AQ
+            # mman.h
+            #
+            # Argon2 is designed to use a considerable amount of memory, so locking memory will cause memory allocation
+            # failure when hashing unless the memlock limit is sufficiently high:
+            # https://man7.org/linux/man-pages/man5/limits.conf.5.html
+            # https://github.com/pyca/cryptography/issues/14778
 
-    parser = argparse.ArgumentParser(
-        description="Create and manage FidoVaults - control access to secrets via symmetric encryption and decryption using FIDO2 authenticators.",
-        epilog="If neither '--init' nor '--add' are specified, the program will attempt to output the FidoVault's secret to STDOUT.")
-    parser.add_argument("-v", "--vault", help="FidoVault location", default="fidovault.ini")
-    parser.add_argument("-k", "--key", help="use (only) this key section of the FidoVault")
-    parser.add_argument("-g", "--generate", help="generate FidoVault secret utilizing at least N cryptographically random bits (only used if initializing a FidoVault, otherwise ignored)", type=int, metavar="N")
-    action = parser.add_mutually_exclusive_group()
-    action.add_argument("-i", "--init", action="store_true", help="initialize a FidoVault")
-    action.add_argument("-a", "--add", action="store_true", help="add a key section to a FidoVault")
-    args = parser.parse_args()
+            MCL_FUTURE = 2
+            result = libc.syscall(MLOCKALL, MCL_FUTURE)
+            if result != 0:
+                print(f"Failed to lock memory - aborting.")
+                exit(1)
 
     # Perform requested FidoVault action
 

@@ -40,20 +40,22 @@ At least on Linux, if FidoVault's dependencies are installed and available (e.g.
 Display usage instructions:
 
 ```
-$ fidovault.py -h
-usage: fidovault.py [-h] [-v VAULT] [-k KEY] [-g N] [-i | -a]
+usage: fidovault.py [-h] [-v VAULT] [-k KEY] [-g N] [-m] [-i | -a]
 
 Create and manage FidoVaults - control access to secrets via symmetric encryption and decryption using FIDO2 authenticators.
 
 options:
   -h, --help         show this help message and exit
-  -v, --vault VAULT  FidoVault location
+  -v, --vault VAULT  FidoVault filename
   -k, --key KEY      use (only) this key section of the FidoVault
   -g, --generate N   generate FidoVault secret utilizing at least N cryptographically random bits (only used if initializing a FidoVault, otherwise ignored)
+  -m, --mlockall     lock all process memory into RAM (Linux only, and the memlock limit must be high enough to accommodate the memory used by Argon2)
   -i, --init         initialize a FidoVault
   -a, --add          add a key section to a FidoVault
 
 If neither '--init' nor '--add' are specified, the program will attempt to output the FidoVault's secret to STDOUT.
+
+
 ```
 
 Initialize a FidoVault:
@@ -170,7 +172,7 @@ $ fidovault.py -v <vaultname> | xargs -I % qdbus org.keepassxc.KeePassXC.MainWin
 
 ## Memory Security
 
-On Linux, on startup FidoVault calls [`prctl(PR_SET_DUMPABLE, 0)`](https://man7.org/linux/man-pages/man2/pr_set_dumpable.2const.html) to disable [ptracing](https://lwn.net/Articles/491440/) and core dumping, and [`mlockall(MCL_FUTURE)`](https://www.man7.org/linux/man-pages/man2/mlockall.2.html) to disable paging.
+On Linux, on startup FidoVault calls [`prctl(PR_SET_DUMPABLE, 0)`](https://man7.org/linux/man-pages/man2/pr_set_dumpable.2const.html) to disable [ptracing](https://lwn.net/Articles/491440/) and core dumping. If the `-m` command line flag is given, then FidoVault will also call [`mlockall(MCL_FUTURE)`](https://www.man7.org/linux/man-pages/man2/mlockall.2.html) to lock memory into RAM and disable paging. This is not done by default, since the program uses [Argon2](https://en.wikipedia.org/wiki/Argon2) hashing for key derivation, and the Argon2 algorithm is designed to use a considerable amount of memory, [which will cause the program to crash with a memory allocation error](https://github.com/pyca/cryptography/issues/14778) when run under typical [memlock limits](https://man7.org/linux/man-pages/man5/limits.conf.5.html) (e.g., 8 MiB in Debian).
 
 ## Background
 
