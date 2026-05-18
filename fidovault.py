@@ -75,6 +75,7 @@ from fido2.webauthn import UserVerificationRequirement
 __version__ = "0.1.0"
 ORIGIN = 'example.com'
 
+
 class CliInteraction(UserInteraction):
     def __init__(self):
         self._pin = None
@@ -88,7 +89,7 @@ class CliInteraction(UserInteraction):
         return self._pin
 
     def request_uv(self, permissions, rd_id):
-        print_tty("User Verification required.")
+        print_tty("User Verification required")
         return True
 
 
@@ -105,7 +106,7 @@ def input_boolean(prompt, default):
             return False
         if inp in ["y", "yes", "true", "on", "1"]:
             return True
-        print_tty("Please enter 'y' or 'n'.")
+        print_tty("Please enter 'y' or 'n'")
 
 
 def get_password(confirm):
@@ -114,26 +115,26 @@ def get_password(confirm):
         password = getpass("Enter password: ")
         if not confirm or password == getpass("Confirm password: "):
             return password.encode()
-        print_tty("Passwords do not match - please try again.")
+        print_tty("Passwords do not match - please try again")
 
 
 def find_fido2_device():
-    """Find and return the first device that supports the hmac-secret extension, or 'None' if none are found"""
+    """Return the first device that supports the hmac-secret extension, or None if none are found"""
     client_data_collector = DefaultClientDataCollector(f"https://{ORIGIN}")
     for dev in CtapHidDevice.list_devices():
         print_tty(f"Checking device at {dev.descriptor.path} ...")
         client = Fido2Client(dev, client_data_collector=client_data_collector, user_interaction=CliInteraction(),
                              extensions=[HmacSecretExtension(allow_hmac_secret=True)])
         if "hmac-secret" in client.info.extensions:
-            print_tty("Device supports the hmac-secret extension.")
+            print_tty("Device supports the hmac-secret extension")
             return client
-        print_tty("Device does not support the hmac-secret extension.")
-    print_tty("No device (with hmac-secret support) found.")
+        print_tty("Device does not support the hmac-secret extension")
+    print_tty("No device (with hmac-secret support) found")
     return None
 
 
 def add_key_section(vault, token):
-    """Add a key section to a FidoVault"""
+    """Add a key section to a FidoVault; return True if successful, False if not"""
     input(
         "Please connect the device you wish to add (and disconnect any others).\nPress <enter> when ready ... ")
     client = find_fido2_device()
@@ -150,9 +151,9 @@ def add_key_section(vault, token):
         print_tty(ce.cause)
         return False
     if not result.client_extension_results.get("hmacCreateSecret"):
-        print_tty("Error: hmacCreateSecret not found!")
+        print_tty("Error: hmacCreateSecret not found")
         return False
-    print_tty("FIDO2 credential created.")
+    print_tty("FIDO2 credential created")
     credential = result.response.attestation_object.auth_data.credential_data
     hmac_secret_salt = os.urandom(32)
     kdf_salt = os.urandom(16)
@@ -162,34 +163,39 @@ def add_key_section(vault, token):
         key_name = input(f"Enter name for this key section: (default is '{default_key_name}')") or default_key_name
         if key_name in vault.sections():
             print_tty(
-                f"'{vault}' already contains a key section named '{key_name}' - please choose a different name.")
+                f"'{vault}' already contains a key section named '{key_name}' - please choose a different name")
             key_name = None
     user_verification = input_boolean(
         "Perform user verification when using this key section?", True)
     password = input_boolean(
         "Combine password with FIDO2 hmac-secret when using this key section?", True)
-    vault[key_name] = {"credential": credential.credential_id.hex(),
+    kdf_parameters = "m=2097152,t=1,p=4"
+    vault[key_name] = {"credential": base64.standard_b64encode(credential.credential_id).decode(),
                        "user-verification": user_verification,
                        "password": password,
-                       "hmac-secret-salt": hmac_secret_salt.hex(),
-                       "kdf-salt": kdf_salt.hex(),
+                       "hmac-secret-salt": base64.standard_b64encode(hmac_secret_salt).decode(),
+                       "phc": f"$argon2id$v=19${kdf_parameters}${base64.standard_b64encode(kdf_salt).decode()}$$"
                        }
     secret = get_hmac_secret(vault[key_name], client)
     if vault[key_name].getboolean("password"):
         secret += get_password(True)
-    f = Fernet(secret_to_key(secret, kdf_salt))
-    vault[key_name]["token"] = f.encrypt(token).hex()
-    print_tty(f"Key section '{key_name}' successfully added.")
+    fernet_key = derive_key(secret, kdf_salt, kdf_parameters)
+    if fernet_key is None: return False
+    # f = Fernet(base64.urlsafe_b64encode(base64.standard_b64decode(
+    #    derive_key(secret, kdf_salt, kdf_parameters).rsplit("$", 1)[1])))
+    f = Fernet(fernet_key)
+    vault[key_name]["token"] = base64.standard_b64encode(f.encrypt(token)).decode()
+    print_tty(f"Key section '{key_name}' successfully added")
     return True
 
 
 def get_hmac_secret(key_section, client):
-    """Return hmac-secret from device 'client' using data from 'key_section', or 'None' in case of failure"""
+    """Return hmac-secret from device 'client' using data from 'key_section', or None if unsuccessful"""
     print_tty("Getting hmac-secret ...")
     user_verification = UserVerificationRequirement.REQUIRED if key_section.getboolean(
         "user-verification") else UserVerificationRequirement.DISCOURAGED
-    salt = bytes.fromhex(key_section["hmac-secret-salt"])
-    allow_list = [{"type": "public-key", "id": bytes.fromhex(key_section["credential"])}]
+    salt = base64.standard_b64decode(key_section["hmac-secret-salt"])
+    allow_list = [{"type": "public-key", "id": base64.standard_b64decode(key_section["credential"])}]
     try:
         result = client.get_assertion(
             {"rpId": ORIGIN, "challenge": os.urandom(12), "allowCredentials": allow_list,
@@ -201,10 +207,27 @@ def get_hmac_secret(key_section, client):
     return result.client_extension_results["hmacGetSecret"]["output1"].encode()
 
 
-def secret_to_key(secret, salt):
-    """Derive a Fernet key from a secret and a salt"""
-    kdf = Argon2id(salt=salt, length=32, iterations=1, lanes=4, memory_cost=2**21)
-    return base64.urlsafe_b64encode(kdf.derive(secret))
+def derive_key(secret, salt, kdf_parameters):
+    """Return a Fernet key derived from 'secret' and 'salt', or None if unsuccessful"""
+    kdf_algorithm = 'argon2id'
+    kdf_parameters = kdf_parameters.split(',')
+    kdf_parameters_dict = {}
+    try:
+        for kdf_parameter in kdf_parameters:
+            k, v = kdf_parameter.split("=")
+            kdf_parameters_dict[k] = int(v)
+        kdf = Argon2id(salt=salt if salt is not None else os.urandom(16), length=32,
+                       iterations=kdf_parameters_dict['t'],
+                       lanes=kdf_parameters_dict['p'], memory_cost=kdf_parameters_dict['m'])
+    except (ValueError, KeyError):
+        print_tty(f"Error: Invalid KDF ({kdf_algorithm}) parameter specification")
+        return None
+    try:
+        key = kdf.derive(secret)
+    except MemoryError:
+        print_tty(f"Error: Could not allocate memory for key derivation ({kdf_algorithm})")
+        return None
+    return base64.urlsafe_b64encode(key)
 
 
 def write_vault(vault, filename):
@@ -216,7 +239,7 @@ def write_vault(vault, filename):
 def read_vault(filename):
     """Read vault from filename"""
     if not os.path.isfile(filename):
-        print_tty(f"Error: File '{filename}' does not exist.")
+        print_tty(f"Error: File '{filename}' does not exist")
         return None
     fidovault = configparser.ConfigParser()
     fidovault.read(filename)
@@ -224,15 +247,16 @@ def read_vault(filename):
 
 
 def decrypt_token(vault, key):
-    """Decrypt a FidoVault token and return it; returns 'None' in case of failure"""
+    """Return a decrypted FidoVault token, or None if unsuccessful"""
     if key:
         if key in vault.sections():
-            allow_list = [{"type": "public-key", "id": bytes.fromhex(vault[key]["credential"])}]
+            allow_list = [{"type": "public-key", "id": base64.standard_b64decode(vault[key]["credential"])}]
         else:
-            print_tty(f"Key section '{key}' not found in vault.")
+            print_tty(f"Error: Key section '{key}' not found in vault")
             return None
     else:
-        allow_list = [{"type": "public-key", "id": bytes.fromhex(vault[key_section]["credential"])} for key_section
+        allow_list = [{"type": "public-key", "id": base64.standard_b64decode(vault[key_section]["credential"])} for
+                      key_section
                       in vault.sections()]
     # ccd = CollectedClientData.create(type="webauthn.get", challenge=websafe_encode(os.urandom(12)), origin=f"https://{ORIGIN}}")
     for dev in CtapHidDevice.list_devices():
@@ -243,37 +267,39 @@ def decrypt_token(vault, key):
             result = client.get_assertion(ORIGIN, sha256(os.urandom(12)), allow_list, options={"up": False})
         except CtapError as ce:
             if ce.code == 46:
-                print_tty("No valid credentials found on device.")
+                print_tty("No valid credentials found on device")
                 continue
             else:
                 print_tty(ce)
                 return None
-        print_tty("Valid credential found on device.")
+        print_tty("Valid credential found on device")
         credential = result.credential["id"]
         break
     else:
-        print_tty("No device with valid credential found.")
+        print_tty("No device with valid credential found - cannot decrypt token")
         return None
     client_data_collector = DefaultClientDataCollector(f"https://{ORIGIN}")
     client = Fido2Client(dev, client_data_collector=client_data_collector, user_interaction=CliInteraction(),
                          extensions=[HmacSecretExtension(allow_hmac_secret=True)])
     for key_name in vault.sections():
-        if bytes.fromhex(vault[key_name]["credential"]) == credential:
+        if base64.standard_b64decode(vault[key_name]["credential"]) == credential:
             print_tty(f"Trying to decode token using '{key_name}' key section ...")
             secret = get_hmac_secret(vault[key_name], client)
-            if secret is None:
-                return None
+            if secret is None: return None
             if vault[key_name].getboolean("password"):
                 secret += get_password(False)
-            f = Fernet(secret_to_key(secret, bytes.fromhex(vault[key_name]["kdf-salt"])))
+            phc = vault[key_name]["phc"].split("$")
+            fernet_key = derive_key(secret, base64.standard_b64decode(phc[4]), phc[3])
+            if fernet_key is None: return None
+            f = Fernet(fernet_key)
             try:
-                decrypted_token = f.decrypt(bytes.fromhex(vault[key_name]["token"]))
+                decrypted_token = f.decrypt(base64.standard_b64decode(vault[key_name]["token"]))
             except cryptography.fernet.InvalidToken:
-                print_tty("Token decryption failed.")
+                print_tty("Token decryption failed")
                 return None
-            print_tty("Token decryption succeeded.")
+            print_tty("Token decryption succeeded")
             return decrypted_token
-    print_tty("Credential does not match any key section in vault - cannot decrypt token.")
+    print_tty("Credential does not match any key section in vault - cannot decrypt token")
     return None
 
 
@@ -284,22 +310,25 @@ def init_vault(secret=None):
             secret = getpass("Enter secret: ")
             if getpass("Confirm secret: ") == secret:
                 break
-            print_tty("Entries do not match - please try again.")
+            print_tty("Entries do not match - please try again")
     vault = configparser.ConfigParser()
     return vault if add_key_section(vault, secret.encode()) else None
 
 
 def main():
-
     # Parse command line arguments
 
     parser = argparse.ArgumentParser(
-        description="Create and manage FidoVaults - control access to secrets via symmetric encryption and decryption using FIDO2 authenticators.",
-        epilog="If neither '--init' nor '--add' are specified, the program will attempt to output the FidoVault's secret to STDOUT.")
+        description="Create and manage FidoVaults - control access to secrets via symmetric encryption and decryption using FIDO2 authenticators",
+        epilog="If neither '--init' nor '--add' are specified, the program will attempt to output the FidoVault's secret to STDOUT")
     parser.add_argument("-v", "--vault", help="FidoVault filename", default="fidovault.ini")
     parser.add_argument("-k", "--key", help="use (only) this key section of the FidoVault")
-    parser.add_argument("-g", "--generate", help="generate FidoVault secret utilizing at least N cryptographically random bits (only used if initializing a FidoVault, otherwise ignored)", type=int, metavar="N")
-    parser.add_argument("-m", "--mlockall", help="lock all process memory into RAM (Linux only, and the memlock limit must be high enough to accommodate the memory used by Argon2)", action="store_true", default=False)
+    parser.add_argument("-g", "--generate",
+                        help="generate FidoVault secret utilizing at least N cryptographically random bits (only used if initializing a FidoVault, otherwise ignored)",
+                        type=int, metavar="N")
+    parser.add_argument("-m", "--mlockall",
+                        help="lock all process memory into RAM (Linux only, and the memlock limit must be high enough to accommodate the memory used by Argon2)",
+                        action="store_true", default=False)
     action = parser.add_mutually_exclusive_group()
     action.add_argument("-i", "--init", action="store_true", help="initialize a FidoVault")
     action.add_argument("-a", "--add", action="store_true", help="add a key section to a FidoVault")
@@ -321,7 +350,7 @@ def main():
         PR_SET_DUMPABLE = 4
         result = libc.syscall(PR_CTL, PR_SET_DUMPABLE, 0)
         if result != 0:
-            print(f"Failed to set non-dumpable - aborting.")
+            print(f"Failed to set non-dumpable - aborting")
             exit(1)
         if args.mlockall:
 
@@ -339,33 +368,34 @@ def main():
             MCL_FUTURE = 2
             result = libc.syscall(MLOCKALL, MCL_FUTURE)
             if result != 0:
-                print(f"Failed to lock memory - aborting.")
+                print(f"Failed to lock memory - aborting")
                 exit(1)
 
     # Perform requested FidoVault action
 
     if args.init:
         if os.path.isfile(args.vault):
-            print_tty(f"FidoVault initialization requested but file '{args.vault}' already exists - aborting.")
+            print_tty(f"FidoVault initialization requested but file '{args.vault}' already exists - aborting")
             exit(1)
-        secret =  os.urandom(args.generate // 8 + (1 if args.generate % 8 else 0)).hex() if args.generate else None
+        secret = base64.standard_b64encode(
+            os.urandom(args.generate // 8 + (1 if args.generate % 8 else 0))) if args.generate else None
         vault = init_vault(secret)
         if vault is not None:
             write_vault(vault, args.vault)
-            print_tty(f"FidoVault '{args.vault}' initialized.")
+            print_tty(f"FidoVault '{args.vault}' initialized")
         else:
-            print_tty("FidoVault initialization failed.")
+            print_tty("FidoVault initialization failed")
             exit(1)
     else:
         vault = read_vault(args.vault)
         if vault is None:
-            print_tty(f"Failed to read '{args.vault}'.")
+            print_tty(f"Failed to read '{args.vault}'")
             exit(1)
         if args.add:
             if not add_key_section(vault, decrypt_token(vault, None)):
                 exit(1)
             write_vault(vault, args.vault)
-            print_tty(f"Updated FidoVault '{args.vault}'.")
+            print_tty(f"Updated FidoVault '{args.vault}'")
         else:
             token = decrypt_token(vault, args.key)
             if token is None:
