@@ -351,7 +351,7 @@ def main():
         result = libc.syscall(PR_CTL, PR_SET_DUMPABLE, 0)
         if result != 0:
             print(f"Failed to set non-dumpable - aborting")
-            exit(1)
+            return 1
         if args.mlockall:
 
             # Try to lock all future process memory
@@ -369,14 +369,14 @@ def main():
             result = libc.syscall(MLOCKALL, MCL_FUTURE)
             if result != 0:
                 print(f"Failed to lock memory - aborting")
-                exit(1)
+                return 1
 
     # Perform requested FidoVault action
 
     if args.init:
         if os.path.isfile(args.vault):
             print_tty(f"FidoVault initialization requested but file '{args.vault}' already exists - aborting")
-            exit(1)
+            return 1
         secret = base64.standard_b64encode(
             os.urandom(args.generate // 8 + (1 if args.generate % 8 else 0))) if args.generate else None
         vault = init_vault(secret)
@@ -385,22 +385,21 @@ def main():
             print_tty(f"FidoVault '{args.vault}' initialized")
         else:
             print_tty("FidoVault initialization failed")
-            exit(1)
+            return 1
     else:
         vault = read_vault(args.vault)
         if vault is None:
             print_tty(f"Failed to read '{args.vault}'")
-            exit(1)
+            return 1
         if args.add:
-            if not add_key_section(vault, decrypt_token(vault, None)):
-                exit(1)
+            if not add_key_section(vault, decrypt_token(vault, None)): return 1
             write_vault(vault, args.vault)
             print_tty(f"Updated FidoVault '{args.vault}'")
         else:
             token = decrypt_token(vault, args.key)
-            if token is None:
-                exit(1)
+            if token is None: return 1
             print(token.decode())
+    return 0
 
 
 if __name__ == "__main__":
