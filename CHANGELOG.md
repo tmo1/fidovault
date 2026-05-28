@@ -6,6 +6,8 @@ This project attempts to adhere to [Semantic Versioning](https://semver.org/spec
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-28
+
 ### Changed
 
  - **Breaking:** Switch from PBKDF2HMAC to Argon2id for key derivation   ([a3ee9f2](https://github.com/tmo1/fidovault/commit/a3ee9f21f8d9d58a53498f69a9f8b0780c8b35f8))
@@ -23,4 +25,5 @@ This project attempts to adhere to [Semantic Versioning](https://semver.org/spec
 _Initial release_
 
 [0.1.0]: https://github.com/tmo1/fidovault/releases/tag/v0.1.0
-[Unreleased]: https://github.com/tmo1/fidovault/compare/v0.1.0...HEAD
+[0.2.0]: https://github.com/tmo1/fidovault/releases/tag/v0.2.0
+[Unreleased]: https://github.com/tmo1/fidovault/compare/v0.2.0...HEAD
