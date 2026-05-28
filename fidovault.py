@@ -51,7 +51,7 @@
 """
 Control access to secrets via symmetric encryption and decryption using FIDO2 authenticators.
 
-Usage: fidovault.py [-h] [-v VAULT] [-k KEY] [-i | -a] [-g N]
+usage: fidovault.py [-h] [-v VAULT] [-k KEY] [-p PARAMETERS] [-g N] [-m] [-i | -a]
 Run 'fidovault.py -h' for help
 """
 
@@ -133,13 +133,12 @@ def find_fido2_device():
     return None
 
 
-def add_key_section(vault, token):
+def add_key_section(vault, token, kdf_parameters):
     """Add a key section to a FidoVault; return True if successful, False if not"""
     input(
         "Please connect the device you wish to add (and disconnect any others).\nPress <enter> when ready ... ")
     client = find_fido2_device()
-    if client is None:
-        return False
+    if client is None: return False
     print_tty("Creating FIDO2 credential ... ")
     user_id = os.urandom(8)
     try:
@@ -169,7 +168,6 @@ def add_key_section(vault, token):
         "Perform user verification when using this key section?", True)
     password = input_boolean(
         "Combine password with FIDO2 hmac-secret when using this key section?", True)
-    kdf_parameters = "m=2097152,t=1,p=4"
     vault[key_name] = {"credential": base64.standard_b64encode(credential.credential_id).decode(),
                        "user-verification": user_verification,
                        "password": password,
@@ -181,8 +179,6 @@ def add_key_section(vault, token):
         secret += get_password(True)
     fernet_key = derive_key(secret, kdf_salt, kdf_parameters)
     if fernet_key is None: return False
-    # f = Fernet(base64.urlsafe_b64encode(base64.standard_b64decode(
-    #    derive_key(secret, kdf_salt, kdf_parameters).rsplit("$", 1)[1])))
     f = Fernet(fernet_key)
     vault[key_name]["token"] = base64.standard_b64encode(f.encrypt(token)).decode()
     print_tty(f"Key section '{key_name}' successfully added")
@@ -220,7 +216,7 @@ def derive_key(secret, salt, kdf_parameters):
                        iterations=kdf_parameters_dict['t'],
                        lanes=kdf_parameters_dict['p'], memory_cost=kdf_parameters_dict['m'])
     except (ValueError, KeyError):
-        print_tty(f"Error: Invalid KDF ({kdf_algorithm}) parameter specification")
+        print_tty(f"Error: Invalid KDF ({kdf_algorithm}) parameter specification: {kdf_parameters}")
         return None
     try:
         key = kdf.derive(secret)
@@ -237,9 +233,9 @@ def write_vault(vault, filename):
 
 
 def read_vault(filename):
-    """Read vault from filename"""
+    """Read vault from filename and return it, or None if unsuccessful"""
     if not os.path.isfile(filename):
-        print_tty(f"Error: File '{filename}' does not exist")
+        print_tty(f"Error: '{filename}' does not exist")
         return None
     fidovault = configparser.ConfigParser()
     fidovault.read(filename)
@@ -303,16 +299,15 @@ def decrypt_token(vault, key):
     return None
 
 
-def init_vault(secret=None):
+def init_vault(secret, kdf_parameters):
     """Initialize a FidoVault"""
     if secret is None:
         while True:
             secret = getpass("Enter secret: ")
-            if getpass("Confirm secret: ") == secret:
-                break
+            if getpass("Confirm secret: ") == secret: break
             print_tty("Entries do not match - please try again")
     vault = configparser.ConfigParser()
-    return vault if add_key_section(vault, secret.encode()) else None
+    return vault if add_key_section(vault, secret.encode(), kdf_parameters) else None
 
 
 def main():
@@ -323,11 +318,13 @@ def main():
         epilog="If neither '--init' nor '--add' are specified, the program will attempt to output the FidoVault's secret to STDOUT")
     parser.add_argument("-v", "--vault", help="FidoVault filename", default="fidovault.ini")
     parser.add_argument("-k", "--key", help="use (only) this key section of the FidoVault")
+    default_kdf_parameters = 't=1,p=4,m=2097152'
+    parser.add_argument("-p", "--parameters", help=f"Argon2id parameters (default: '{default_kdf_parameters}'), only used when initializing a FidoVault or adding a key section to one", default=default_kdf_parameters)
     parser.add_argument("-g", "--generate",
                         help="generate FidoVault secret utilizing at least N cryptographically random bits (only used if initializing a FidoVault, otherwise ignored)",
                         type=int, metavar="N")
     parser.add_argument("-m", "--mlockall",
-                        help="lock all process memory into RAM (Linux only, and the memlock limit must be high enough to accommodate the memory used by Argon2)",
+                        help="lock all process memory into RAM (Linux only, and the memlock limit must be high enough to accommodate the memory used by Argon2id)",
                         action="store_true", default=False)
     action = parser.add_mutually_exclusive_group()
     action.add_argument("-i", "--init", action="store_true", help="initialize a FidoVault")
@@ -350,7 +347,7 @@ def main():
         PR_SET_DUMPABLE = 4
         result = libc.syscall(PR_CTL, PR_SET_DUMPABLE, 0)
         if result != 0:
-            print(f"Failed to set non-dumpable - aborting")
+            print_tty(f"Failed to set non-dumpable - aborting")
             return 1
         if args.mlockall:
 
@@ -368,7 +365,7 @@ def main():
             MCL_FUTURE = 2
             result = libc.syscall(MLOCKALL, MCL_FUTURE)
             if result != 0:
-                print(f"Failed to lock memory - aborting")
+                print_tty(f"Failed to lock memory - aborting")
                 return 1
 
     # Perform requested FidoVault action
@@ -379,7 +376,7 @@ def main():
             return 1
         secret = base64.standard_b64encode(
             os.urandom(args.generate // 8 + (1 if args.generate % 8 else 0))) if args.generate else None
-        vault = init_vault(secret)
+        vault = init_vault(secret, args.parameters)
         if vault is not None:
             write_vault(vault, args.vault)
             print_tty(f"FidoVault '{args.vault}' initialized")
@@ -388,11 +385,9 @@ def main():
             return 1
     else:
         vault = read_vault(args.vault)
-        if vault is None:
-            print_tty(f"Failed to read '{args.vault}'")
-            return 1
+        if vault is None: return 1
         if args.add:
-            if not add_key_section(vault, decrypt_token(vault, None)): return 1
+            if not add_key_section(vault, decrypt_token(vault, None), args.parameters): return 1
             write_vault(vault, args.vault)
             print_tty(f"Updated FidoVault '{args.vault}'")
         else:
