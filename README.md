@@ -40,7 +40,7 @@ At least on Linux, if FidoVault's dependencies are installed and available (e.g.
 Display usage instructions:
 
 ```
-$ fidovault.py -h
+$ fidovault -h
 usage: fidovault.py [-h] [-v VAULT] [-k KEY] [-p PARAMETERS] [-g N] [-m] [-i | -a]
 
 Create and manage FidoVaults - control access to secrets via symmetric encryption and decryption using FIDO2 authenticators
@@ -63,7 +63,7 @@ If neither '--init' nor '--add' are specified, the program will attempt to outpu
 Initialize a FidoVault:
 
 ```
-$ python3 fidovault.py -i -v <vaultname>
+$ fidovault -i -v <vaultname>
 Enter secret: 
 Confirm secret: 
 Please connect the device you wish to add (and disconnect any others).
@@ -89,7 +89,7 @@ FidoVault '<vaultname>' initialized
 Add an additional authenticator to an existing FidoVault (connect an already added authenticator before proceeding):
 
 ```
-$ python3 fidovault.py -a -v <vaultname>
+$ fidovault -a -v <vaultname>
 Checking device at /dev/hidraw1 ...
 Valid credential found on device
 Trying to decode token using 'Key 1' key section ...
@@ -121,18 +121,7 @@ Updated FidoVault '<vaultname>'
 Output a FidoVault secret:
 
 ```
-$ fidovault.py -v <vaultname>
-Checking device at /dev/hidraw2 ...
-Credential found on device.
-Trying to decode token using 'Blue Key' key section ...
-Getting hmac-secret ...
-Enter PIN: 
-Touch your authenticator now ...
-Enter password: 
-Token decryption succeeded.
-<secret>
-
-$ python3 fidovault.py -v <vaultname>
+$ fidovault -v <vaultname>
 Checking device at /dev/hidraw1 ...
 Valid credential found on device
 Trying to decode token using 'Key 1' key section ...
@@ -150,19 +139,19 @@ Token decryption succeeded
 FidoVault is designed to be used in conjunction with other programs, by providing a secret to them. For programs that accept a secret on `STDIN`, simply pipe FidoVault's `STDOUT` to them (all FidoVault user interaction output is written to `STDERR` / `/dev/tty`, and so will be printed to the terminal and not redirected to the other program). E.g., to use a FidoVault secret for symmetric encryption [and decryption](https://unix.stackexchange.com/questions/560135/how-to-decrypt-file-that-was-symmetrically-encrypted-using-gpg) of a file with [GnuPG](https://gnupg.org/), run:
 
 ```
-$ fidovault.py -v <vaultname> | gpg --passphrase-fd 0 --pinentry-mode loopback -c <filename>
+$ fidovault -v <vaultname> | gpg --passphrase-fd 0 --pinentry-mode loopback -c <filename>
 ```
 
 and:
 
 ```
-$ fidovault.py -v <vaultname> | gpg --passphrase-fd 0 --pinentry-mode loopback --output <filename> -d <filename.gpg>
+$ fidovault -v <vaultname> | gpg --passphrase-fd 0 --pinentry-mode loopback --output <filename> -d <filename.gpg>
 ```
 
 To open a [KeePassXC](https://keepassxc.org/) database with a FidoVault secret as password, run:
 
 ```
-$ fidovault.py -v <vaultname> | keepassxc --pw-stdin /path/to/database.kdbx
+$ fidovault -v <vaultname> | keepassxc --pw-stdin /path/to/database.kdbx
 ```
 
 (Unfortunately, [this only works if KeePassXC is not currently running](https://github.com/keepassxreboot/keepassxc/issues/2089).)
@@ -170,7 +159,7 @@ $ fidovault.py -v <vaultname> | keepassxc --pw-stdin /path/to/database.kdbx
 For programs that expect a secret as an argument, FidoVault can pass a secret to them via [`xargs`](https://en.wikipedia.org/wiki/Xargs). E.g., to open a KeePassXC database with a FidoVault secret as password [via D-Bus](https://github.com/keepassxreboot/keepassxc/wiki/Using-DBus-with-KeePassXC) when KeePassXC is already running, run:
 
 ```
-$ fidovault.py -v <vaultname> | xargs qdbus org.keepassxc.KeePassXC.MainWindow /keepassxc org.keepassxc.KeePassXC.MainWindow.openDatabase /path/to/database.kdbx
+$ fidovault -v <vaultname> | xargs qdbus org.keepassxc.KeePassXC.MainWindow /keepassxc org.keepassxc.KeePassXC.MainWindow.openDatabase /path/to/database.kdbx
 ```
 
 (On Debian Sid, replace `qdbus` with `qdbus6`.)
@@ -178,7 +167,7 @@ $ fidovault.py -v <vaultname> | xargs qdbus org.keepassxc.KeePassXC.MainWindow /
 To pass the secret at a position other than the end of the command, use the `-I replace-str` argument of `xargs`. E.g., to open a KeePassXC database with a FidoVault secret as a password plus a keyfile that resides somewhere in the filesystem via D-Bus, run:
 
 ```
-$ fidovault.py -v <vaultname> | xargs -I % qdbus org.keepassxc.KeePassXC.MainWindow /keepassxc org.keepassxc.KeePassXC.MainWindow.openDatabase /path/to/database.kdbx % /path/to/keyfile
+$ fidovault -v <vaultname> | xargs -I % qdbus org.keepassxc.KeePassXC.MainWindow /keepassxc org.keepassxc.KeePassXC.MainWindow.openDatabase /path/to/database.kdbx % /path/to/keyfile
 ```
 
 > [!CAUTION]
@@ -186,11 +175,11 @@ $ fidovault.py -v <vaultname> | xargs -I % qdbus org.keepassxc.KeePassXC.MainWin
 
 ## Memory Security
 
-On Linux, on startup FidoVault calls [`prctl(PR_SET_DUMPABLE, 0)`](https://man7.org/linux/man-pages/man2/pr_set_dumpable.2const.html) to disable [ptracing](https://lwn.net/Articles/491440/) and core dumping. If the `-m` command line flag is given, then FidoVault will also call [`mlockall(MCL_FUTURE)`](https://www.man7.org/linux/man-pages/man2/mlockall.2.html) to lock memory into RAM and disable paging. This is not done by default, since the program uses [Argon2id](https://en.wikipedia.org/wiki/Argon2) hashing for key derivation, and the Argon2id algorithm is designed to use a considerable amount of memory, [which will cause the program to crash with a memory allocation error](https://github.com/pyca/cryptography/issues/14778) when run under typical [memlock limits](https://man7.org/linux/man-pages/man5/limits.conf.5.html) (e.g., 8 MiB in Debian).
+On Linux, on startup FidoVault calls [`prctl(PR_SET_DUMPABLE, 0)`](https://man7.org/linux/man-pages/man2/pr_set_dumpable.2const.html) to disable [ptracing](https://lwn.net/Articles/491440/) and core dumping. If the `-m` command line flag is given, then FidoVault will also call [`mlockall(MCL_FUTURE)`](https://www.man7.org/linux/man-pages/man2/mlockall.2.html) to lock memory into RAM and disable paging. Memory locking is not done by default, since FidoVault uses the [Argon2id](https://en.wikipedia.org/wiki/Argon2) algorithm for key derivation, and Argon2id is designed to use a considerable amount of memory, [which will cause the program to crash with a memory allocation error](https://github.com/pyca/cryptography/issues/14778) when run under typical [memlock limits](https://man7.org/linux/man-pages/man5/limits.conf.5.html) (e.g., 8 MiB in Debian).
 
 ## Key Derivation
 
-FidoVault currently uses the [Argon2id algorithm](https://en.wikipedia.org/wiki/Argon2) to derive the key used to encrypt the secret from a combination of the FIDO2 hmac-secret, an optional password, and a randomly chosen key derivation salt. (Earlier versions of the program used the [PBKDF2HMAC algorithm](https://en.wikipedia.org/wiki/PBKDF2); to access a key section created with PBKDF2HMAC, use version 0.1.0 of the program.) The Argon2id parameters of iterations, lanes, and memory cost can be specified via the `-p` parameter, e.g.:
+FidoVault currently uses the [Argon2id algorithm](https://en.wikipedia.org/wiki/Argon2) to derive an encryption key from a combination of a FIDO2 hmac-secret, an optional password, and a randomly chosen key derivation salt. (Earlier versions of the program used the [PBKDF2HMAC algorithm](https://en.wikipedia.org/wiki/PBKDF2); to access a key section created with PBKDF2HMAC, use version 0.1.0 of the program.) The Argon2id parameters of iterations, lanes, and memory cost can be specified via the `-p` parameter, e.g.:
 
  - `-p 't=1,p=4,m=2097152'`: This is the "FIRST **RECOMMENDED** option" of [RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106#name-parameter-choice). It requires 2 GiB of memory, and is currently the default if `-p` is not specified.
  - `-p 't=3,p=4,m=65536`: This is the "SECOND **RECOMMENDED** option" of the RFC, for situations where "much less memory is available."

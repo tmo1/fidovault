@@ -14,13 +14,13 @@ This project attempts to adhere to [Semantic Versioning](https://semver.org/spec
  
 ### Added
 
- - Implement memory security on Linux ([3bf9683](https://github.com/tmo1/fidovault/commit/3bf9683c1d60088cbddd99c6c9e8caaceadc5b6a)
+ - Implement memory security on Linux ([3bf9683](https://github.com/tmo1/fidovault/commit/3bf9683c1d60088cbddd99c6c9e8caaceadc5b6a))
  - Add secret generation option ([f870fc3](https://github.com/tmo1/fidovault/commit/f870fc350992ac9f477cf641e78f8657f5d533d3))
  - Allow user specification of KDF parameters ([b376950](https://github.com/tmo1/fidovault/commit/b376950771f9ff3cd58e7005d329917a07d0bb41))
 
 ## [0.1.0] - 2026-01-09
 
-_Initial release._
+_Initial release_
 
 [0.1.0]: https://github.com/tmo1/fidovault/releases/tag/v0.1.0
 [Unreleased]: https://github.com/tmo1/fidovault/compare/v0.1.0...HEAD
