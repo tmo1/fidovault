@@ -40,79 +40,81 @@ At least on Linux, if FidoVault's dependencies are installed and available (e.g.
 Display usage instructions:
 
 ```
-usage: fidovault.py [-h] [-v VAULT] [-k KEY] [-g N] [-m] [-i | -a]
+$ fidovault.py -h
+usage: fidovault.py [-h] [-v VAULT] [-k KEY] [-p PARAMETERS] [-g N] [-m] [-i | -a]
 
-Create and manage FidoVaults - control access to secrets via symmetric encryption and decryption using FIDO2 authenticators.
+Create and manage FidoVaults - control access to secrets via symmetric encryption and decryption using FIDO2 authenticators
 
 options:
-  -h, --help         show this help message and exit
-  -v, --vault VAULT  FidoVault filename
-  -k, --key KEY      use (only) this key section of the FidoVault
-  -g, --generate N   generate FidoVault secret utilizing at least N cryptographically random bits (only used if initializing a FidoVault, otherwise ignored)
-  -m, --mlockall     lock all process memory into RAM (Linux only, and the memlock limit must be high enough to accommodate the memory used by Argon2)
-  -i, --init         initialize a FidoVault
-  -a, --add          add a key section to a FidoVault
+  -h, --help            show this help message and exit
+  -v, --vault VAULT     FidoVault filename
+  -k, --key KEY         use (only) this key section of the FidoVault
+  -p, --parameters PARAMETERS
+                        Argon2id parameters (default: 't=1,p=4,m=2097152'), only used when initializing a FidoVault or adding a key section to one
+  -g, --generate N      generate FidoVault secret utilizing at least N cryptographically random bits (only used if initializing a FidoVault, otherwise ignored)
+  -m, --mlockall        lock all process memory into RAM (Linux only, and the memlock limit must be high enough to accommodate the memory used by Argon2id)
+  -i, --init            initialize a FidoVault
+  -a, --add             add a key section to a FidoVault
 
-If neither '--init' nor '--add' are specified, the program will attempt to output the FidoVault's secret to STDOUT.
-
+If neither '--init' nor '--add' are specified, the program will attempt to output the FidoVault's secret to STDOUT
 
 ```
 
 Initialize a FidoVault:
 
 ```
-$ fidovault.py -i -v <vaultname>
+$ python3 fidovault.py -i -v <vaultname>
 Enter secret: 
 Confirm secret: 
-Please connect the device you wish to enroll (and disconnect any others).
+Please connect the device you wish to add (and disconnect any others).
 Press <enter> when ready ... 
-Checking device at /dev/hidraw2 ...
-Device supports the hmac-secret extension.
+Checking device at /dev/hidraw1 ...
+Device supports the hmac-secret extension
 Creating FIDO2 credential ... 
 Enter PIN: 
 Touch your authenticator now ...
-FIDO2 credential created.
-Enter name for this key section: Blue Key
+FIDO2 credential created
+Enter name for this key section: (default is 'Key 1')
 Perform user verification when using this key section? (y/n - default is y) 
 Combine password with FIDO2 hmac-secret when using this key section? (y/n - default is y) 
 Getting hmac-secret ...
 Touch your authenticator now ...
 Enter password: 
 Confirm password: 
-Key section 'Blue Key' successfully added.
-FidoVault '<vaultname>' updated.
+Key section 'Key 1' successfully added
+FidoVault '<vaultname>' initialized
 
 ```
 
 Add an additional authenticator to an existing FidoVault (connect an already added authenticator before proceeding):
 
 ```
-$ fidovault.py -a -v <vaultname>
-Checking device at /dev/hidraw2 ...
-Credential found on device.
-Trying to decode token using 'Blue Key' key section ...
+$ python3 fidovault.py -a -v <vaultname>
+Checking device at /dev/hidraw1 ...
+Valid credential found on device
+Trying to decode token using 'Key 1' key section ...
 Getting hmac-secret ...
 Enter PIN: 
 Touch your authenticator now ...
 Enter password: 
-Token decryption succeeded.
-Please connect the device you wish to enroll (and disconnect any others).
+Token decryption succeeded
+Please connect the device you wish to add (and disconnect any others).
 Press <enter> when ready ... 
-Checking device at /dev/hidraw2 ...
-Device supports the hmac-secret extension.
+Checking device at /dev/hidraw1 ...
+Device supports the hmac-secret extension
 Creating FIDO2 credential ... 
 Enter PIN: 
 Touch your authenticator now ...
-FIDO2 credential created.
-Enter name for this key section: Red Key
+FIDO2 credential created
+Enter name for this key section: (default is 'Key 2')
 Perform user verification when using this key section? (y/n - default is y) 
 Combine password with FIDO2 hmac-secret when using this key section? (y/n - default is y) 
 Getting hmac-secret ...
 Touch your authenticator now ...
 Enter password: 
 Confirm password: 
-Key section 'Red Key' successfully added.
-FidoVault '<vaultname>' updated.
+Key section 'Key 2' successfully added
+Updated FidoVault '<vaultname>'
 
 ```
 
@@ -129,6 +131,18 @@ Touch your authenticator now ...
 Enter password: 
 Token decryption succeeded.
 <secret>
+
+$ python3 fidovault.py -v <vaultname>
+Checking device at /dev/hidraw1 ...
+Valid credential found on device
+Trying to decode token using 'Key 1' key section ...
+Getting hmac-secret ...
+Enter PIN: 
+Touch your authenticator now ...
+Enter password: 
+Token decryption succeeded
+<secret>
+
 ```
 
 ### Providing a FidoVault secret to another program
@@ -172,7 +186,17 @@ $ fidovault.py -v <vaultname> | xargs -I % qdbus org.keepassxc.KeePassXC.MainWin
 
 ## Memory Security
 
-On Linux, on startup FidoVault calls [`prctl(PR_SET_DUMPABLE, 0)`](https://man7.org/linux/man-pages/man2/pr_set_dumpable.2const.html) to disable [ptracing](https://lwn.net/Articles/491440/) and core dumping. If the `-m` command line flag is given, then FidoVault will also call [`mlockall(MCL_FUTURE)`](https://www.man7.org/linux/man-pages/man2/mlockall.2.html) to lock memory into RAM and disable paging. This is not done by default, since the program uses [Argon2](https://en.wikipedia.org/wiki/Argon2) hashing for key derivation, and the Argon2 algorithm is designed to use a considerable amount of memory, [which will cause the program to crash with a memory allocation error](https://github.com/pyca/cryptography/issues/14778) when run under typical [memlock limits](https://man7.org/linux/man-pages/man5/limits.conf.5.html) (e.g., 8 MiB in Debian).
+On Linux, on startup FidoVault calls [`prctl(PR_SET_DUMPABLE, 0)`](https://man7.org/linux/man-pages/man2/pr_set_dumpable.2const.html) to disable [ptracing](https://lwn.net/Articles/491440/) and core dumping. If the `-m` command line flag is given, then FidoVault will also call [`mlockall(MCL_FUTURE)`](https://www.man7.org/linux/man-pages/man2/mlockall.2.html) to lock memory into RAM and disable paging. This is not done by default, since the program uses [Argon2id](https://en.wikipedia.org/wiki/Argon2) hashing for key derivation, and the Argon2id algorithm is designed to use a considerable amount of memory, [which will cause the program to crash with a memory allocation error](https://github.com/pyca/cryptography/issues/14778) when run under typical [memlock limits](https://man7.org/linux/man-pages/man5/limits.conf.5.html) (e.g., 8 MiB in Debian).
+
+## Key Derivation
+
+FidoVault currently uses the [Argon2id algorithm](https://en.wikipedia.org/wiki/Argon2) to derive the key used to encrypt the secret from a combination of the FIDO2 hmac-secret, an optional password, and a randomly chosen key derivation salt. (Earlier versions of the program used the [PBKDF2HMAC algorithm](https://en.wikipedia.org/wiki/PBKDF2); to access a key section created with PBKDF2HMAC, use version 0.1.0 of the program.) The Argon2id parameters of iterations, lanes, and memory cost can be specified via the `-p` parameter, e.g.:
+
+ - `-p 't=1,p=4,m=2097152'`: This is the "FIRST **RECOMMENDED** option" of [RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106#name-parameter-choice). It requires 2 GiB of memory, and is currently the default if `-p` is not specified.
+ - `-p 't=3,p=4,m=65536`: This is the "SECOND **RECOMMENDED** option" of the RFC, for situations where "much less memory is available."
+ 
+ See the RFC for more information on choosing parameters. (The KDF salt and tag lengths cannot be user-specified: the former is always 128 bits (16 bytes), and the latter is always 256 bits (32 bytes).)
+ 
 
 ## Background
 
