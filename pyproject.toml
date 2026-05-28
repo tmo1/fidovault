@@ -1,5 +1,5 @@
 [build-system]
-requires = ["flit_core >=3.11,<4"]
+requires = ["flit_core >=3.11,<5"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -12,7 +12,11 @@ dynamic = ["version", "description"]
 dependencies = ["cryptography", "fido2 >=2.0.0"]
 
 [project.urls]
-Home = "https://github.com/tmo1/fidovault/"
+homepage = "https://github.com/tmo1/fidovault/"
+github = "https://github.com/tmo1/fidovault/"
+issues = "https://github.com/tmo1/fidovault/issues"
+changelog = "https://github.com/tmo1/fidovault/blob/master/CHANGELOG.md"
+funding = "https://ko-fi.com/thomasmore"
 
 [project.scripts]
 fidovault = "fidovault:main"
