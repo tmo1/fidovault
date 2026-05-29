@@ -391,7 +391,9 @@ def main():
         vault = read_vault(args.vault)
         if vault is None: return 1
         if args.add:
-            if not add_key_section(vault, decrypt_token(vault, None), args.parameters): return 1
+            token = decrypt_token(vault, None)
+            if token is None: return 1
+            if not add_key_section(vault, token, args.parameters): return 1
             write_vault(vault, args.vault)
             print_tty(f"Updated FidoVault '{args.vault}'")
         else:
