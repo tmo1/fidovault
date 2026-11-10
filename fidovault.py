@@ -59,6 +59,7 @@ import argparse
 import base64
 import configparser
 import os
+import secrets
 import sys
 from getpass import getpass
 import cryptography
@@ -325,7 +326,7 @@ def main():
     default_kdf_parameters = 't=1,p=4,m=2097152'
     parser.add_argument("-p", "--parameters", help=f"Argon2id parameters (default: '{default_kdf_parameters}'), only used when initializing a FidoVault or adding a key section to one", default=default_kdf_parameters)
     parser.add_argument("-g", "--generate",
-                        help="generate FidoVault secret utilizing at least N cryptographically random bits (only used if initializing a FidoVault, otherwise ignored)",
+                        help="generate FidoVault secret containing N cryptographically random bytes (only used if initializing a FidoVault, otherwise ignored)",
                         type=int, metavar="N")
     parser.add_argument("-m", "--mlockall",
                         help="lock all process memory into RAM (Linux only, and the memlock limit must be high enough to accommodate the memory used by Argon2id)",
@@ -378,8 +379,7 @@ def main():
         if os.path.isfile(args.vault):
             print_tty(f"FidoVault initialization requested but file '{args.vault}' already exists - aborting")
             return 1
-        secret = base64.standard_b64encode(
-            os.urandom(args.generate // 8 + (1 if args.generate % 8 else 0))) if args.generate else None
+        secret = secrets.token_urlsafe(args.generate) if args.generate else None
         vault = init_vault(secret, args.parameters)
         if vault is not None:
             write_vault(vault, args.vault)

@@ -51,7 +51,7 @@ options:
   -k, --key KEY         use (only) this key section of the FidoVault
   -p, --parameters PARAMETERS
                         Argon2id parameters (default: 't=1,p=4,m=2097152'), only used when initializing a FidoVault or adding a key section to one
-  -g, --generate N      generate FidoVault secret utilizing at least N cryptographically random bits (only used if initializing a FidoVault, otherwise ignored)
+  -g, --generate N      generate FidoVault secret utilizing N cryptographically random bytes (only used if initializing a FidoVault, otherwise ignored)
   -m, --mlockall        lock all process memory into RAM (Linux only, and the memlock limit must be high enough to accommodate the memory used by Argon2id)
   -i, --init            initialize a FidoVault
   -a, --add             add a key section to a FidoVault
@@ -179,7 +179,7 @@ On Linux, on startup FidoVault calls [`prctl(PR_SET_DUMPABLE, 0)`](https://man7.
 
 ## Key Derivation
 
-FidoVault currently uses the [Argon2id algorithm](https://en.wikipedia.org/wiki/Argon2) to derive an encryption key from a combination of a FIDO2 hmac-secret, an optional password, and a randomly chosen key derivation salt. (Earlier versions of the program used the [PBKDF2HMAC algorithm](https://en.wikipedia.org/wiki/PBKDF2); to access a key section created with PBKDF2HMAC, use version 0.1.0 of the program.) The Argon2id parameters of iterations, lanes, and memory cost can be specified via the `-p` parameter, e.g.:
+FidoVault currently uses the [Argon2id algorithm](https://en.wikipedia.org/wiki/Argon2) to derive an encryption key from a combination of a FIDO2 hmac-secret, an optional password, and a randomly chosen key derivation salt. (Earlier versions of the program used the [PBKDF2HMAC algorithm](https://en.wikipedia.org/wiki/PBKDF2); to access a key section created with PBKDF2HMAC, use version 0.1.0 of the program.) The Argon2id parameters of iterations (`t`), lanes (`p`), and memory cost (`m`) can be specified via the FidoVault `-p` parameter, e.g.:
 
  - `-p 't=1,p=4,m=2097152'`: This is the "FIRST **RECOMMENDED** option" of [RFC 9106](https://datatracker.ietf.org/doc/html/rfc9106#name-parameter-choice). It requires 2 GiB of memory, and is currently the default if `-p` is not specified.
  - `-p 't=3,p=4,m=65536`: This is the "SECOND **RECOMMENDED** option" of the RFC, for situations where "much less memory is available."
