@@ -73,7 +73,7 @@ from fido2.hid import CtapHidDevice
 from fido2.utils import sha256
 from fido2.webauthn import UserVerificationRequirement
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 ORIGIN = 'example.com'
 
 
